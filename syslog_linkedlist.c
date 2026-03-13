@@ -1,0 +1,92 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+/* 1. VERI YAPISI TANIMI */
+// Her bir Syslog mesajýný temsil eden Baðlý Liste Düðümü
+struct LogNode {
+    char timestamp[30]; 
+    char level[15];     
+    char message[100];  
+    struct LogNode* next; // Bir sonraki düðümün adresi (Baðlý Liste mantýðý)
+};
+
+/* 2. LOG EKLEME FONKSIYONU (Sona Ekleme) */
+// Syslog verileri kronolojik olduðu için yeni veriler sona eklenir.
+void addLog(struct LogNode** head, const char* level, const char* msg) {
+    // Bellekte yeni bir düðüm oluþtur (Dinamik Bellek Yönetimi)
+    struct LogNode* newLog = (struct LogNode*)malloc(sizeof(struct LogNode));
+    if (newLog == NULL) {
+        printf("Bellek hatasi!\n");
+        return;
+    }
+
+    // Zaman damgasýný sistemden otomatik al
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    strftime(newLog->timestamp, sizeof(newLog->timestamp), "%b %d %H:%M:%S", tm);
+
+    // Verileri düðüme kopyala
+    strncpy(newLog->level, level, sizeof(newLog->level));
+    strncpy(newLog->message, msg, sizeof(newLog->message));
+    newLog->next = NULL;
+
+    // Eðer liste boþsa, yeni düðüm listenin baþý (head) olur
+    if (*head == NULL) {
+        *head = newLog;
+    } else {
+        // Liste boþ deðilse, son düðümü bulana kadar ilerle (Traversal)
+        struct LogNode* temp = *head;
+        while (temp->next != NULL) {
+            temp = temp->next;
+        }
+        temp->next = newLog; // Son düðümün 'next'ini yeni düðüme baðla
+    }
+}
+
+/* 3. LOGLARI LISTELEME FONKSIYONU */
+void displayLogs(struct LogNode* head) {
+    printf("\n================ LINUX SYSLOG (LINKED LIST) ================\n");
+    printf("%-20s | %-10s | %-s\n", "ZAMAN", "SEVIYE", "MESAJ");
+    printf("------------------------------------------------------------\n");
+
+    struct LogNode* current = head;
+    while (current != NULL) {
+        printf("%-20s | %-10s | %-s\n", current->timestamp, current->level, current->message);
+        current = current->next;
+    }
+    printf("============================================================\n");
+}
+
+/* 4. BELLEK TEMIZLEME */
+// Program kapanýrken ayrýlan bellek iade edilmelidir.
+void freeLogs(struct LogNode* head) {
+    struct LogNode* temp;
+    while (head != NULL) {
+        temp = head;
+        head = head->next;
+        free(temp);
+    }
+}
+
+/* ANA PROGRAM */
+int main() {
+    struct LogNode* mySyslog = NULL; // Listenin baþlangýcý (Head)
+
+    // Örnek log kayýtlarý ekleyelim
+    addLog(&mySyslog, "KERNEL", "Disk drive sda1 checked successfully.");
+    addLog(&mySyslog, "AUTH", "User 'admin' logged in from 192.168.1.10.");
+    addLog(&mySyslog, "ERROR", "Failed to start Apache Web Server.");
+    addLog(&mySyslog, "CRON", "Daily backup script executed.");
+
+    // Loglarý ekrana yazdýr
+    displayLogs(mySyslog);
+
+    // Belleði serbest býrak
+    freeLogs(mySyslog);
+
+    printf("\nSistem gunlukleri basariyla islendi. Cikmak icin bir tusa basin...");
+    getchar();
+    return 0;
+}
